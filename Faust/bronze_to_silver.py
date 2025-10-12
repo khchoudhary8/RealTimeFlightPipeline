@@ -4,7 +4,6 @@ import json
 from dotenv import load_dotenv
 import pandas as pd
 from datetime import datetime
-from io import BytesIO
 
 load_dotenv()
 
@@ -63,7 +62,7 @@ def main():
                 print(f"   📋 Found {len(flights)} flights in array")
             else:
                 flights = [data]
-                print(f"   📋 Found 1 flight object")
+                print("   📋 Found 1 flight object")
             
             valid_flights = 0
             for flight in flights:

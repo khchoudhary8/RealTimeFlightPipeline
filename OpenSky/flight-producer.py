@@ -15,7 +15,7 @@ INDIA_BOUNDS= (6.0,38.0,68.0,97.0)
 def fetch_flight_data():
     url = "https://opensky-network.org/api/states/all"
     try:
-        print(f"🔄 Fetching data from OpenSky API...")
+        print("🔄 Fetching data from OpenSky API...")
         response = requests.get(url, timeout=15)
         
         print(f"📡 Response status: {response.status_code}")

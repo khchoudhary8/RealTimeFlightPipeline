@@ -47,7 +47,7 @@ async def process_flight_data(flights):
             
             try:
                 timestamp = datetime.utcnow().strftime('%Y/%m/%d/%H%M%S')
-                key = f"raw_flights/{timestamp}_batch.json"
+                key = f"bronze/{timestamp}_batch.json"
                 flight_dicts = [f.asdict() for f in buffer]
                 s3.put_object(
                     Bucket=BUCKET_NAME,
