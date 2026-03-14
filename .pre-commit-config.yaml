@@ -13,9 +13,9 @@ repos:
   #     - id: black
   #       language_version: python3
   #       exclude: ^venv/
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.8.0
-  #   hooks:
-  #     - id: mypy
-  #       exclude: ^venv/
-  #       additional_dependencies: [types-requests, types-boto3]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        exclude: ^venv/
+        additional_dependencies: [types-requests, types-boto3]
