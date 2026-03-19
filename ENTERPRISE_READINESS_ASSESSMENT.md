@@ -14,16 +14,17 @@
 **Readiness Level**: Intermediate (Solid foundation, requires architectural & operational improvements)
 
 ### 🎖️ Current Strengths
-✅ Modern Tech Stack (Kafka, Faust, AWS S3, Snowflake, Dagster)  
-✅ Multi-layer Data Architecture (Bronze/Silver/Gold)  
-✅ Comprehensive Documentation (3 detailed READMEs)  
-✅ Dual Orchestration (Custom + Dagster)  
-✅ Real-time Stream Processing Implementation  
-✅ Good Code Organization (separate components)  
-✅ Interactive Dashboard & Monitoring  
-✅ Proper Secret Management (.env pattern)  
+✅ **Lambda Architecture Pattern** (separate speed+batch layers, though using Faust/Pandas currently)  
+✅ **Multi-layer Data Architecture** (Bronze/Silver/Gold medallion pattern)  
+✅ **Comprehensive Documentation** (3 detailed READMEs, assessment, codebase guide)  
+✅ **Dual Orchestration** (Custom + Dagster)  
+✅ **Stream Processing Implementation** (Kafka-based streaming pipeline)  
+✅ **Good Code Organization** (separate components, some testable design)  
+✅ **Interactive Dashboard** (console analytics)  
+✅ **Secret Management Pattern** (.env, though needs improvement for production)  
 
 ### ⚠️ Critical Gaps
+❌ **Suboptimal Technology Stack** (Faust instead of Flink, Pandas instead of Spark for enterprise scale)  
 ❌ **Insufficient Testing** (Only 1 test file, no unit/integration/load tests)  
 ❌ **No CI/CD Pipeline** (Manual deployment only)  
 ❌ **Limited Error Handling & retry logic**  
@@ -38,23 +39,111 @@
 
 ## 📋 Detailed Assessment by Category
 
-### 1. Architecture & Design (8/10)
+### 1. Architecture & Design (7/10) ⬇️
 
 **✅ Strengths:**
 - Well-defined layered architecture (Bronze → Silver → Gold)
 - Clear separation of concerns (producer, processor, consumer)
 - Dual orchestration approach (custom orchestrator + Dagster)
 - Modular components with single responsibilities
-- Streaming + batch processing hybrid pattern
+- Streaming + batch processing hybrid pattern recognized
+- Good use of Kafka as message backbone
 
 **⚠️ Concerns:**
+- **❌ Technology choice not optimal for enterprise**: Faust is Python-only, limited scalability vs Flink
+- **❌ No clear Lambda Architecture implementation**: Batch processing uses Pandas (single-node), not distributed Spark
+- **❌ Missing architectural evolution plan**: How to scale from prototype to production (100K+ events/sec)
 - Orchestrator mixes business logic with infrastructure management
 - Inconsistent patterns across components (multiple ways to do ETL)
 - No clear interface contracts between layers
 - Tight coupling between components (hardcoded dependencies)
 - Missing microservices decomposition (all in one monolith)
 
-**🏆 Recommendations:**
+**🎯 Recommendations:**
+
+1. **Adopt Lambda Architecture with Flink + Spark**
+   ```markdown
+   Current: Faust (single-node Python streaming) + Pandas (batch)
+   Target:  Flink (distributed streaming) + Spark (distributed batch)
+
+   Why:
+   - Flink: True streaming, stateful processing, exactly-once, sub-second latency
+   - Spark: Distributed computing, MLlib, handles TB-scale historical data
+   - Cost optimization: Streaming for latency-sensitive, batch for heavy aggregations
+   ```
+
+   **Implementation Plan**:
+   - Phase 1: Set up Flink cluster, implement streaming windowing aggregations
+   - Phase 2: Migrate batch ETL from Pandas to Spark (PySpark or Scala)
+   - Phase 3: Decommission Faust, use Flink for all real-time processing
+   - Phase 4: Implement proper serving layer in Snowflake (merge Flink+Spark outputs)
+
+2. **Define Clear Layer Contracts**
+   ```python
+   # schemas/contracts.py
+   from dataclasses import dataclass
+   from typing import Protocol, List, Any
+   from datetime import datetime
+
+   @dataclass(frozen=True)
+   class FlightEvent:
+       """Immutable flight event - contract between layers"""
+       icao24: str
+       latitude: float
+       longitude: float
+       altitude: float
+       velocity: float
+       timestamp: datetime
+
+   class IStreamProcessor(Protocol):
+       """Contract for stream processors (Flink/Faust)"""
+       def process(self, events: List[FlightEvent]) -> List[dict]: ...
+       def checkpoint(self, state: dict) -> None: ...
+       def restore(self, checkpoint: dict) -> None: ...
+
+   class IBatchProcessor(Protocol):
+       """Contract for batch processors (Spark)"""
+       def process_batch(self, data_path: str, output_path: str) -> None: ...
+       def aggregate(self, df: Any, window: str) -> Any: ...
+   ```
+
+3. **Separate Infrastructure from Business Logic**
+   - Move `flight_streaming_orchestrator.py` logic to `services/orchestration.py`
+   - Extract `config/` module with typed configuration classes
+   - Use dependency injection for S3, Kafka, Snowflake clients
+   - Example:
+     ```python
+     # services/streaming_service.py
+     class StreamingService:
+         def __init__(
+             self,
+             producer: IMessageProducer,
+             processor: IStreamProcessor,
+             monitor: IMonitor
+         ):
+             self.producer = producer
+             self.processor = processor
+             self.monitor = monitor
+
+         def start(self) -> None:
+             # Business logic here, no infrastructure details
+             pass
+     ```
+
+4. **Implement Lambda Architecture (Flink + Spark)**
+   - **Real-time Layer**: Replace Faust with Flink for true streaming (sub-second latency, stateful CEP)
+   - **Batch Layer**: Replace Pandas with Spark for distributed processing (TB-scale, MLlib)
+   - **Serving Layer**: Snowflake merges both (real-time views + historical aggregates)
+   - **Data Format**: Switch from JSON to Parquet (columnar, compression, predicate pushdown)
+   - **Benefits**:
+     - Flink handles low-latency use cases (alerts, live dashboards)
+     - Spark handles heavy batch (daily aggregates, ML training, backfills)
+     - Cost optimization: batch cheaper for large-scale processing
+     - Independent scaling: scale Flink for throughput, Spark for compute
+
+---
+
+### 2. Code Quality & Standards (5/10)
 1. **Define Clear Interfaces**
    ```python
    # Example: Define abstract base classes

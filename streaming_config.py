@@ -5,7 +5,7 @@ Centralized configuration for the unified streaming pipeline
 """
 
 import os
-from typing import Dict, Any
+from typing import Dict
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -92,64 +92,101 @@ class StreamingConfig:
         validation['overall'] = all(validation.values())
         return validation
     
-    @classmethod
-    def get_geographic_bounds(cls) -> Dict[str, float]:
-        """Get geographic bounds as dictionary"""
-        return {
-            'min_lat': float(cls.INDIA_BOUNDS[0]),
-            'max_lat': float(cls.INDIA_BOUNDS[1]),
-            'min_lon': float(cls.INDIA_BOUNDS[2]),
-            'max_lon': float(cls.INDIA_BOUNDS[3])
-        }
-    
-    @classmethod
-    def print_config(cls):
-        """Print current configuration (without sensitive data)"""
-        print("""
-╔══════════════════════════════════════════════════════════════╗
-║                    📋 CONFIGURATION STATUS                   ║
-╚══════════════════════════════════════════════════════════════╝
-        """)
-        
-        print("🔧 AWS Configuration:")
-        print(f"   Region: {cls.AWS_REGION}")
-        print(f"   S3 Bucket: {cls.S3_BUCKET_NAME}")
-        print(f"   Access Key: {'✅ Set' if cls.AWS_ACCESS_KEY_ID else '❌ Missing'}")
-        
-        print("\n🔧 Kafka Configuration:")
-        print(f"   Bootstrap Servers: {cls.KAFKA_BOOTSTRAP_SERVERS}")
-        print(f"   Topic: {cls.KAFKA_TOPIC}")
-        
-        print("\n🔧 Snowflake Configuration:")
-        print(f"   Account: {cls.SNOWFLAKE_CONFIG['account']}")
-        print(f"   User: {cls.SNOWFLAKE_CONFIG['user']}")
-        print(f"   Database: {cls.SNOWFLAKE_CONFIG['database']}")
-        print(f"   Private Key: {'✅ Set' if cls.SNOWFLAKE_CONFIG['private_key_path'] else '❌ Missing'}")
-        
-        print("\n🔧 OpenSky API Configuration:")
-        print(f"   URL: {cls.OPENSKY_API_URL}")
-        print(f"   Fetch Interval: {cls.FETCH_INTERVAL_SECONDS}s")
-        print(f"   Batch Size: {cls.BATCH_SIZE}")
-        
-        bounds = cls.get_geographic_bounds()
-        print(f"\n🔧 Geographic Bounds (India):")
-        print(f"   Latitude: {bounds['min_lat']} to {bounds['max_lat']}")
-        print(f"   Longitude: {bounds['min_lon']} to {bounds['max_lon']}")
-        
-        # Validation status
-        validation = cls.validate()
-        print(f"\n🔧 Configuration Validation:")
-        for key, status in validation.items():
-            if key != 'overall':
-                icon = "✅" if status else "❌"
-                print(f"   {icon} {key.replace('_', ' ').title()}")
-        
-        print(f"\n{'='*60}")
-        if validation['overall']:
-            print("🎉 Configuration is valid and ready to run!")
-        else:
-            print("⚠️ Configuration has issues. Please fix the missing items above.")
-        print("="*60)
+     @classmethod
+     def get_geographic_bounds(cls) -> Dict[str, float]:
+         """Get geographic bounds as dictionary"""
+         return {
+             'min_lat': float(cls.INDIA_BOUNDS[0]),
+             'max_lat': float(cls.INDIA_BOUNDS[1]),
+             'min_lon': float(cls.INDIA_BOUNDS[2]),
+             'max_lon': float(cls.INDIA_BOUNDS[3])
+         }
+     
+     @classmethod
+     def print_config(cls):
+         """Print current configuration (without sensitive data)"""
+         print("""
+ ╔══════════════════════════════════════════════════════════════╗
+ ║                    📋 CONFIGURATION STATUS                   ║
+ ╚══════════════════════════════════════════════════════════════╝
+         """)
+         
+         print("🔧 AWS Configuration:")
+         print(f"   Region: {cls.AWS_REGION}")
+         print(f"   S3 Bucket: {cls.S3_BUCKET_NAME}")
+         print(f"   Access Key: {'✅ Set' if cls.AWS_ACCESS_KEY_ID else '❌ Missing'}")
+         
+         print("\n🔧 Kafka Configuration:")
+         print(f"   Bootstrap Servers: {cls.KAFKA_BOOTSTRAP_SERVERS}")
+         print(f"   Topic: {cls.KAFKA_TOPIC}")
+         
+         print("\n🔧 Snowflake Configuration:")
+         print(f"   Account: {cls.SNOWFLAKE_CONFIG['account']}")
+         print(f"   User: {cls.SNOWFLAKE_CONFIG['user']}")
+         print(f"   Database: {cls.SNOWFLAKE_CONFIG['database']}")
+         print(f"   Private Key: {'✅ Set' if cls.SNOWFLAKE_CONFIG['private_key_path'] else '❌ Missing'}")
+         
+         print("\n🔧 OpenSky API Configuration:")
+         print(f"   URL: {cls.OPENSKY_API_URL}")
+         print(f"   Fetch Interval: {cls.FETCH_INTERVAL_SECONDS}s")
+         print(f"   Batch Size: {cls.BATCH_SIZE}")
+         
+         bounds = cls.get_geographic_bounds()
+         print("\n🔧 Geographic Bounds (India):")
+         print(f"   Latitude: {bounds['min_lat']} to {bounds['max_lat']}")
+         print(f"   Longitude: {bounds['min_lon']} to {bounds['max_lon']}")
+         
+         # Validation status
+         validation = cls.validate()
+         print("\n🔧 Configuration Validation:")
+         for key, status in validation.items():
+             if key != 'overall':
+                 icon = "✅" if status else "❌"
+                 print(f"   {icon} {key.replace('_', ' ').title()}")
+         
+         print(f"\n{'='*60}")
+         if validation['overall']:
+             print("🎉 Configuration is valid and ready to run!")
+         else:
+             print("⚠️ Configuration has issues. Please fix the missing items above.")
+         print("="*60)
+
+
+# ============================================================================
+# Future Configuration: Flink & Spark (Lambda Architecture)
+# ============================================================================
+# These settings will be used when migrating from Faust/Pandas to Flink/Spark.
+# They are not actively used yet but defined here for planning purposes.
+
+FLINK_CONFIG = {
+    'checkpoint_interval': 60000,  # ms (60 seconds)
+    'parallelism': 10,
+    'state_backend': 'rocksdb',
+    'checkpoint_dir': 's3://realtimeflightstreamingbucket/flink-checkpoints/',
+    'savepoint_dir': 's3://realtimeflightstreamingbucket/flink-savepoints/',
+    ' restart_strategy': 'exponential-delay',
+    'restart_max_attempts': 3,
+    'jobmanager_memory': '4096m',
+    'taskmanager_memory': '8192m',
+    'kafka_consumer_group_id': 'flink-speed-layer',
+    'watermark_delay_seconds': 5,  # event time lateness
+}
+
+SPARK_CONFIG = {
+    'app_name': 'FlightBatchProcessor',
+    'master': 'local[*]',
+    'executor_memory': '8g',
+    'driver_memory': '4g',
+    'dynamic_allocation_enabled': True,
+    'min_executors': 2,
+    'max_executors': 20,
+    'shuffle_partitions': 200,
+    'sql_adaptive_enabled': True,
+    'parquet_compression': 'snappy',
+    'batch_schedule_cron': '0 2 * * *',  # Daily at 2 AM
+    's3_silver_path': 's3://realtimeflightstreamingbucket/silver_flights/',
+    'snowflake_table': 'FLIGHTS_DAILY_AGG',
+}
 
 # Global configuration instance
 config = StreamingConfig()
