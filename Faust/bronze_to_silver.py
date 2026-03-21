@@ -6,8 +6,8 @@ Refactored to enable unit testing without AWS credentials.
 import json
 import pandas as pd
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from schemas.flight_schema import FlightRecord, FlightBatch
+from typing import List, Dict, Any
+from schemas.flight_schema import FlightRecord
 from Faust.transformation_utils import filter_valid_flights, generate_silver_key
 
 

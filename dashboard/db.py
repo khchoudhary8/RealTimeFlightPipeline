@@ -1,7 +1,6 @@
 import snowflake.connector
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-import pandas as pd
 import os
 import sys
 import streamlit as st

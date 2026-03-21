@@ -1,13 +1,9 @@
 import boto3
 import json
-import io
 import polars as pl
-import pandas as pd
 from dagster import asset, Output
 from config.settings import settings
-from .bronze import raw_flight_files
-from deltalake import write_deltalake, DeltaTable
-from datetime import datetime
+from deltalake import write_deltalake
 
 @asset
 def silver_flights(raw_flight_files):

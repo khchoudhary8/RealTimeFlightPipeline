@@ -90,7 +90,7 @@ def fetch_flight_data():
         if token:
             headers['Authorization'] = f"Bearer {token}"
             
-        print(f"🔄 Fetching data from OpenSky API...")
+        print("🔄 Fetching data from OpenSky API...")
         start_time = time.time()
         response = requests.get(OPENSKY_URL, headers=headers, timeout=20)
         

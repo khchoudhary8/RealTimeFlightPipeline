@@ -1,11 +1,10 @@
 import streamlit as st
-import pandas as pd
 import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import settings
-from db import get_snowflake_connection, query_snowflake
+from db import get_snowflake_connection
 
 st.set_page_config(
     page_title="Flight Analytics Platform",

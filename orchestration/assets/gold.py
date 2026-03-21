@@ -6,7 +6,6 @@ from cryptography.hazmat.primitives import serialization
 import pandas as pd
 from deltalake import DeltaTable
 from config.settings import settings
-from .silver import silver_flights
 import os
 
 def get_snowflake_connection():

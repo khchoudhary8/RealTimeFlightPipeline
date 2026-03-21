@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from scripts.verify_snowflake_data import get_snowflake_connection
 
@@ -21,14 +22,14 @@ try:
     """)
     row = cursor.fetchone()
     total = row[0] if row[0] else 1
-    print(f"\n--- NULL Analysis ---")
+    print("\n--- NULL Analysis ---")
     print(f"Total rows:            {row[0]}")
     print(f"TIME_POSITION nulls:   {row[1]} ({row[1]*100//total}%)")
     print(f"PROCESSED_AT nulls:    {row[2]} ({row[2]*100//total}%)")
     print(f"PARTITION_DATE nulls:  {row[3]} ({row[3]*100//total}%)")
 
     # 3. Check actual values (cast to varchar to avoid type issues)
-    print(f"\n--- Time Value Samples ---")
+    print("\n--- Time Value Samples ---")
     cursor.execute("""
         SELECT 
             TIME_POSITION::VARCHAR as tp, 
@@ -41,13 +42,13 @@ try:
         print(f"TIME_POSITION={r[0]}  |  PROCESSED_AT={r[1]}  |  PARTITION_DATE={r[2]}")
 
     # 4. Check data types
-    print(f"\n--- Column Data Types ---")
+    print("\n--- Column Data Types ---")
     cursor.execute("SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='FLIGHTS_RAW' ORDER BY ORDINAL_POSITION")
     for r in cursor.fetchall():
         print(f"  {r[0]:25s} {r[1]:20s} nullable={r[2]}")
 
     # 5. Check non-null time ranges using varchar cast
-    print(f"\n--- Non-NULL Time Ranges ---")
+    print("\n--- Non-NULL Time Ranges ---")
     cursor.execute("""
         SELECT 
             MIN(TIME_POSITION::VARCHAR), MAX(TIME_POSITION::VARCHAR),

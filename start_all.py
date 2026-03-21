@@ -222,7 +222,7 @@ def start_monitoring_stack():
                 log(Colors.GREEN, "  [OK] Prometheus is running on http://localhost:9090")
             else:
                 log(Colors.YELLOW, "  [WARN] Prometheus not ready yet")
-        except:
+        except Exception:
             log(Colors.YELLOW, "  [WARN] Could not check Prometheus health")
 
         # Check Grafana
@@ -233,7 +233,7 @@ def start_monitoring_stack():
                 log(Colors.YELLOW, "     Login: admin / admin (change password immediately)")
             else:
                 log(Colors.YELLOW, "  [WARN] Grafana not ready yet")
-        except:
+        except Exception:
             log(Colors.YELLOW, "  [WARN] Could not check Grafana health")
 
         return True
@@ -411,12 +411,12 @@ def main():
             for name, proc in list(processes.items()):
                 if proc and proc.poll() is not None:
                     log(Colors.RED, f"\n⚠️  {name} (PID: {proc.pid}) crashed with exit code {proc.returncode}")
-                    log(Colors.YELLOW, f"   Reading last output...")
+                    log(Colors.YELLOW, "   Reading last output...")
                     try:
                         output, _ = proc.communicate(timeout=5)
                         last_lines = output[-500:] if len(output) > 500 else output
                         log(Colors.YELLOW, f"   Last output: {last_lines}")
-                    except:
+                    except Exception:
                         pass
 
                     if name == "streamlit":
@@ -436,5 +436,6 @@ def main():
 
 
 if __name__ == "__main__":
-    processes = {}
+    import typing
+    processes: typing.Dict[str, typing.Any] = {}
     main()

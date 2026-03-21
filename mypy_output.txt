@@ -1,0 +1,9 @@
+mypy.....................................................................[41mFailed[m
+[2m- hook id: mypy[m
+[2m- exit code: 1[m
+
+start_all.py:439: error: Need type annotation for "processes" (hint: "processes: Dict[<type>, <type>] = ...")  [var-annotated]
+Faust\faust_app.py:18: error: Unexpected keyword argument "serializer" for "__init_subclass__" of "object"  [call-arg]
+Faust\faust_app.py:38: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+Found 2 errors in 2 files (checked 43 source files)
+

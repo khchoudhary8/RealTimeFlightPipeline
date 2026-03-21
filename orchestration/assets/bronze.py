@@ -1,4 +1,4 @@
-from dagster import asset, Output, AssetObservation
+from dagster import asset, Output
 import boto3
 from config.settings import settings
 

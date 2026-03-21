@@ -15,7 +15,7 @@ app= faust.App(
 
 )
 
-class Flight (faust.Record, serializer="json"):
+class Flight (faust.Record, serializer="json"):  # type: ignore
     icao24: str
     callsign: str
     origin_country: str
@@ -34,7 +34,7 @@ s3= boto3.client('s3',
 BUCKET_NAME='realtimeflightstreamingbuckett'
 
 @app.agent(topic)
-async def process_flight_data(flights):
+async def process_flight_data(flights: faust.Stream):
     buffer: List[Flight] = []
     batch_interval = 10  # seconds
 

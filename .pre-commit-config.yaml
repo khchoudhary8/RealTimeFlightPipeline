@@ -18,4 +18,5 @@ repos:
     hooks:
       - id: mypy
         exclude: ^venv/
+        args: [--explicit-package-bases, --ignore-missing-imports]
         additional_dependencies: [types-requests, types-boto3]
