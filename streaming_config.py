@@ -18,7 +18,7 @@ class StreamingConfig:
     AWS_REGION = os.getenv('AWS_REGION', 'ap-south-1')
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'realtimeflightstreamingbucket')
+    S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'realtimeflightstreamingbuckett')
     
     # Kafka Configuration
     KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
@@ -162,8 +162,8 @@ FLINK_CONFIG = {
     'checkpoint_interval': 60000,  # ms (60 seconds)
     'parallelism': 10,
     'state_backend': 'rocksdb',
-    'checkpoint_dir': 's3://realtimeflightstreamingbucket/flink-checkpoints/',
-    'savepoint_dir': 's3://realtimeflightstreamingbucket/flink-savepoints/',
+    'checkpoint_dir': 's3://realtimeflightstreamingbuckett/flink-checkpoints/',
+    'savepoint_dir': 's3://realtimeflightstreamingbuckett/flink-savepoints/',
     ' restart_strategy': 'exponential-delay',
     'restart_max_attempts': 3,
     'jobmanager_memory': '4096m',
@@ -184,7 +184,7 @@ SPARK_CONFIG = {
     'sql_adaptive_enabled': True,
     'parquet_compression': 'snappy',
     'batch_schedule_cron': '0 2 * * *',  # Daily at 2 AM
-    's3_silver_path': 's3://realtimeflightstreamingbucket/silver_flights/',
+    's3_silver_path': 's3://realtimeflightstreamingbuckett/silver_flights/',
     'snowflake_table': 'FLIGHTS_DAILY_AGG',
 }
 

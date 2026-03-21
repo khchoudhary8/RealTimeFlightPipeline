@@ -1,0 +1,40 @@
+-- ❄️ Snowflake Setup Script for Flight Data Platform
+-- Execute these commands in a Snowflake Worksheet one by one or all at once.
+
+-- 1. Use Account Admin to set up everything
+USE ROLE ACCOUNTADMIN;
+
+-- 2. Create Warehouse (Compute)
+CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH
+    WITH WAREHOUSE_SIZE = 'XSMALL'
+    AUTO_SUSPEND = 60
+    AUTO_RESUME = TRUE
+    INITIALLY_SUSPENDED = TRUE;
+
+-- 3. Create Database and Schema
+CREATE DATABASE IF NOT EXISTS FLIGHT_ANALYTICS;
+CREATE SCHEMA IF NOT EXISTS FLIGHT_ANALYTICS.RAW;
+
+-- 4. Create a Custom Role for the Pipeline
+CREATE ROLE IF NOT EXISTS DE_ROLE;
+
+-- 5. Grant Permissions to the Role
+GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE DE_ROLE;
+GRANT ALL PRIVILEGES ON DATABASE FLIGHT_ANALYTICS TO ROLE DE_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA FLIGHT_ANALYTICS.RAW TO ROLE DE_ROLE;
+
+-- Allow the role to create tables/views in the schema
+GRANT CREATE TABLE ON SCHEMA FLIGHT_ANALYTICS.RAW TO ROLE DE_ROLE;
+GRANT CREATE VIEW ON SCHEMA FLIGHT_ANALYTICS.RAW TO ROLE DE_ROLE;
+GRANT CREATE STAGE ON SCHEMA FLIGHT_ANALYTICS.RAW TO ROLE DE_ROLE;
+GRANT CREATE FILE FORMAT ON SCHEMA FLIGHT_ANALYTICS.RAW TO ROLE DE_ROLE;
+
+-- 6. Assign Role and Key to User
+-- REPLACE 'YOUR_PUBLIC_KEY_CONTENT_HERE' with the content of rsa_key.pub (excluding header/footer)
+-- You can run the following to select your user:
+SET MY_USER = CURRENT_USER();
+
+GRANT ROLE DE_ROLE TO USER IDENTIFIER($MY_USER);
+
+-- IMPORTANT: You must run this command with your specific public key!
+-- ALTER USER IDENTIFIER($MY_USER) SET RSA_PUBLIC_KEY='<PASTE_YOUR_PUBLIC_KEY_HERE>';

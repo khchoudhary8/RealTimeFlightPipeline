@@ -189,7 +189,7 @@ def main():
 
     result = transform_bronze_to_silver(
         s3_client=s3,
-        bucket_name="realtimeflightstreamingbucket",
+        bucket_name="realtimeflightstreamingbuckett",
         bronze_prefix="bronze/",
         silver_prefix="silver_flights/",
     )

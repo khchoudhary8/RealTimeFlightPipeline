@@ -1,0 +1,10 @@
+
+version: 2
+
+sources:
+  - name: flight_platform
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
+    tables:
+      - name: FLIGHTS_RAW
+        description: "Raw flight data loaded from Silver/Bronze layer"

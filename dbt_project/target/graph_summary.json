@@ -1,0 +1,1 @@
+{"_invocation_id": "0e18c8a3-c1e4-45ed-9201-f7d481b44a16", "linked": {"0": {"name": "source.flight_analytics.flight_platform.FLIGHTS_RAW", "type": "source", "succ": [2]}, "1": {"name": "model.flight_analytics.gold_daily_counts", "type": "model"}, "2": {"name": "model.flight_analytics.stg_flights", "type": "model", "succ": [1]}}}

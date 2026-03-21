@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-🚀 Flight Pipeline - Start All
+Flight Pipeline - Start All
 
 Starts the entire pipeline with a single command:
-1. Docker services (Kafka + Zookeeper)
-2. Flight Producer (OpenSky API → Kafka) [with Prometheus metrics]
-3. Dagster Daemon (scheduler)
-4. Dagster Web UI (monitoring)
+1. Docker services (Kafka, Zookeeper, Redis, Ingestion, Faust Streaming worker)
+2. Dagster Daemon (scheduler) - Clears stale zombies automatically
+3. Dagster Web UI (monitoring)
+4. Streamlit Dashboard (live analytics)
 5. OPTIONAL: Prometheus + Grafana (with --monitoring flag)
 
 Usage:
@@ -45,13 +45,13 @@ def log(color, message):
 
 def check_prerequisites():
     """Check if all required tools are available"""
-    log(Colors.BLUE, "🔍 Checking prerequisites...")
+    log(Colors.BLUE, "Checking prerequisites...")
 
     errors = []
 
-    # Check Python venv
+    # Check Python venv (optional - warn only)
     if not (hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)):
-        errors.append("Virtual environment not activated. Run: venv\\Scripts\\activate")
+        log(Colors.YELLOW, "  [WARN] Virtual environment not activated (recommended but not required)")
 
     # Check .env file
     if not Path(".env").exists():
@@ -60,30 +60,30 @@ def check_prerequisites():
     # Check Docker
     try:
         subprocess.run(["docker", "--version"], capture_output=True, check=True)
-        log(Colors.GREEN, "  ✅ Docker available")
+        log(Colors.GREEN, "  [OK] Docker available")
     except (subprocess.CalledProcessError, FileNotFoundError):
         errors.append("Docker not found or not running. Install Docker Desktop")
 
     # Check Dagster installation
     try:
         result = subprocess.run(["dagster", "--version"], capture_output=True, text=True)
-        log(Colors.GREEN, f"  ✅ Dagster installed: {result.stdout.strip()}")
+        log(Colors.GREEN, f"  [OK] Dagster installed: {result.stdout.strip()}")
     except (subprocess.CalledProcessError, FileNotFoundError):
         errors.append("Dagster not installed. Run: pip install dagster dagster-webserver dagster-aws dagster-snowflake")
 
     if errors:
-        log(Colors.RED, "❌ Prerequisites failed:")
+        log(Colors.RED, "[ERROR] Prerequisites failed:")
         for error in errors:
             log(Colors.RED, f"   - {error}")
         return False
 
-    log(Colors.GREEN, "✅ All prerequisites met")
+        log(Colors.GREEN, "[OK] All prerequisites met")
     return True
 
 
 def start_docker_services():
-    """Start Kafka and Zookeeper via Docker Compose"""
-    log(Colors.BLUE, "🐳 Starting Docker services (Kafka + Zookeeper)...")
+    """Start Kafka, Zookeeper, and ingestion/streaming services via Docker Compose"""
+    log(Colors.BLUE, "Starting Docker services (Kafka, Zookeeper, Redis, Ingestion, Streaming)...")
 
     try:
         subprocess.run(["docker-compose", "up", "-d"], check=True, capture_output=True)
@@ -96,24 +96,24 @@ def start_docker_services():
         # Check if Kafka is actually running
         result = subprocess.run(["docker-compose", "ps"], capture_output=True, text=True)
         if "kafka" in result.stdout and "Up" in result.stdout:
-            log(Colors.GREEN, "  ✅ Kafka is running")
+            log(Colors.GREEN, "  [OK] Kafka is running")
             return True
         else:
-            log(Colors.RED, "  ❌ Kafka did not start properly")
+            log(Colors.RED, "  [ERROR] Kafka did not start properly")
             return False
     except subprocess.CalledProcessError as e:
-        log(Colors.RED, f"  ❌ Failed to start Docker: {e}")
+        log(Colors.RED, f"  [ERROR] Failed to start Docker: {e}")
         return False
 
 
-def start_flight_producer():
-    """Start the flight producer in background"""
-    log(Colors.BLUE, "🛩️  Starting flight producer...")
+def start_streamlit_dashboard():
+    """Start the Streamlit dashboard in background"""
+    log(Colors.BLUE, "Starting Streamlit dashboard...")
 
     try:
-        # Start producer as subprocess
-        producer_proc = subprocess.Popen(
-            [sys.executable, "OpenSky/flight_producer.py"],
+        # Start streamlit as subprocess
+        streamlit_proc = subprocess.Popen(
+            [sys.executable, "-m", "streamlit", "run", "dashboard/app.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -121,29 +121,37 @@ def start_flight_producer():
             universal_newlines=True,
         )
 
-        # Give it a moment to start
         time.sleep(3)
 
-        if producer_proc.poll() is not None:
-            # Process already exited
-            stdout, _ = producer_proc.communicate()
-            log(Colors.RED, f"  ❌ Producer exited immediately: {stdout}")
+        if streamlit_proc.poll() is not None:
+            stdout, _ = streamlit_proc.communicate()
+            log(Colors.RED, f"  [ERROR] Streamlit exited immediately: {stdout}")
             return None
 
-        log(Colors.GREEN, f"  ✅ Flight producer started (PID: {producer_proc.pid})")
-        return producer_proc
+        log(Colors.GREEN, f"  [OK] Streamlit dashboard started (PID: {streamlit_proc.pid})")
+        return streamlit_proc
     except Exception as e:
-        log(Colors.RED, f"  ❌ Failed to start producer: {e}")
+        log(Colors.RED, f"  [ERROR] Failed to start Streamlit: {e}")
         return None
 
 
 def start_dagster_daemon():
     """Start Dagster daemon in background"""
-    log(Colors.BLUE, "📊 Starting Dagster daemon...")
+    log(Colors.BLUE, "Starting Dagster daemon...")
 
     try:
+        # Wipe stale daemon heartbeats first
+        log(Colors.YELLOW, "  Wiping stale daemon heartbeats (fixing zombie processes)...")
+        subprocess.run(
+            ["dagster-daemon", "wipe"], 
+            input="y\n", 
+            text=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        
         daemon_proc = subprocess.Popen(
-            ["dagster-daemon", "run", "-f", "dagster_app/defs.py"],
+            ["dagster-daemon", "run", "-f", "orchestration/definitions.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -155,23 +163,23 @@ def start_dagster_daemon():
 
         if daemon_proc.poll() is not None:
             stdout, _ = daemon_proc.communicate()
-            log(Colors.RED, f"  ❌ Daemon exited immediately: {stdout}")
+            log(Colors.RED, f"  [ERROR] Daemon exited immediately: {stdout}")
             return None
 
-        log(Colors.GREEN, f"  ✅ Dagster daemon started (PID: {daemon_proc.pid})")
+        log(Colors.GREEN, f"  [OK] Dagster daemon started (PID: {daemon_proc.pid})")
         return daemon_proc
     except Exception as e:
-        log(Colors.RED, f"  ❌ Failed to start Dagster daemon: {e}")
+        log(Colors.RED, f"  [ERROR] Failed to start Dagster daemon: {e}")
         return None
 
 
 def start_dagster_webserver():
     """Start Dagster web UI in background"""
-    log(Colors.BLUE, "🌐 Starting Dagster web UI...")
+    log(Colors.BLUE, "Starting Dagster web UI...")
 
     try:
         web_proc = subprocess.Popen(
-            ["dagster", "dev", "-f", "dagster_app/defs.py"],
+            ["dagster", "dev", "-f", "orchestration/definitions.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -183,26 +191,26 @@ def start_dagster_webserver():
 
         if web_proc.poll() is not None:
             stdout, _ = web_proc.communicate()
-            log(Colors.RED, f"  ❌ Webserver exited immediately: {stdout}")
+            log(Colors.RED, f"  [ERROR] Webserver exited immediately: {stdout}")
             return None
 
-        log(Colors.GREEN, f"  ✅ Dagster web UI started (PID: {web_proc.pid})")
+        log(Colors.GREEN, f"  [OK] Dagster web UI started (PID: {web_proc.pid})")
         return web_proc
     except Exception as e:
-        log(Colors.RED, f"  ❌ Failed to start Dagster webserver: {e}")
+        log(Colors.RED, f"  [ERROR] Failed to start Dagster webserver: {e}")
         return None
 
 
 def start_monitoring_stack():
     """Start Prometheus and Grafana via Docker Compose"""
-    log(Colors.BLUE, "📈 Starting monitoring stack (Prometheus + Grafana)...")
+    log(Colors.BLUE, "Starting monitoring stack (Prometheus + Grafana)...")
 
     try:
         # Start monitoring services
         subprocess.run(
-            ["docker-compose", "-f", "docker-compose.monitoring.yml", "up", "-d"], check=True, capture_output=True
+            ["docker-compose", "-f", "docker/docker-compose.monitoring.yml", "up", "-d"], check=True, capture_output=True
         )
-        log(Colors.GREEN, "  ✅ Monitoring services started")
+        log(Colors.GREEN, "  [OK] Monitoring services started")
 
         # Wait for services to be ready
         time.sleep(10)
@@ -211,26 +219,26 @@ def start_monitoring_stack():
         try:
             result = subprocess.run(["curl", "-s", "http://localhost:9090/-/healthy"], capture_output=True)
             if result.returncode == 0:
-                log(Colors.GREEN, "  ✅ Prometheus is running on http://localhost:9090")
+                log(Colors.GREEN, "  [OK] Prometheus is running on http://localhost:9090")
             else:
-                log(Colors.YELLOW, "  ⚠️  Prometheus not ready yet")
+                log(Colors.YELLOW, "  [WARN] Prometheus not ready yet")
         except:
-            log(Colors.YELLOW, "  ⚠️  Could not check Prometheus health")
+            log(Colors.YELLOW, "  [WARN] Could not check Prometheus health")
 
         # Check Grafana
         try:
             result = subprocess.run(["curl", "-s", "http://localhost:3001/api/health"], capture_output=True)
             if result.returncode == 0:
-                log(Colors.GREEN, "  ✅ Grafana is running on http://localhost:3001")
+                log(Colors.GREEN, "  [OK] Grafana is running on http://localhost:3001")
                 log(Colors.YELLOW, "     Login: admin / admin (change password immediately)")
             else:
-                log(Colors.YELLOW, "  ⚠️  Grafana not ready yet")
+                log(Colors.YELLOW, "  [WARN] Grafana not ready yet")
         except:
-            log(Colors.YELLOW, "  ⚠️  Could not check Grafana health")
+            log(Colors.YELLOW, "  [WARN] Could not check Grafana health")
 
         return True
     except subprocess.CalledProcessError as e:
-        log(Colors.RED, f"  ❌ Failed to start monitoring: {e}")
+        log(Colors.RED, f"  [ERROR] Failed to start monitoring: {e}")
         return False
 
 
@@ -253,7 +261,7 @@ def monitor_processes(processes):
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C and shutdown gracefully"""
-    log(Colors.YELLOW, "\n🛑 Shutdown signal received...")
+    log(Colors.YELLOW, "\nShutdown signal received...")
 
     for name, proc in processes.items():
         if proc:
@@ -261,62 +269,61 @@ def signal_handler(sig, frame):
             proc.terminate()
             try:
                 proc.wait(timeout=10)
-                log(Colors.GREEN, f"  ✅ {name} stopped")
+                log(Colors.GREEN, f"  [OK] {name} stopped")
             except subprocess.TimeoutExpired:
-                log(Colors.RED, f"  ⚠️  {name} didn't stop, killing...")
+                log(Colors.RED, f"  [WARN] {name} didn't stop, killing...")
                 proc.kill()
 
     # Stop monitoring Docker containers if they were started
     if monitoring_enabled:
         log(Colors.YELLOW, "  Stopping monitoring stack...")
-        subprocess.run(["docker-compose", "-f", "docker-compose.monitoring.yml", "down"], capture_output=True)
+        subprocess.run(["docker-compose", "-f", "docker/docker-compose.monitoring.yml", "down"], capture_output=True)
 
-    log(Colors.GREEN, "✅ All processes stopped. Goodbye!")
+        log(Colors.GREEN, "[OK] All processes stopped. Goodbye!")
     sys.exit(0)
 
 
 def print_startup_summary(processes, monitoring_enabled):
     """Print summary of started components"""
     log(Colors.BOLD, "\n" + "=" * 70)
-    log(Colors.BOLD, "✅ FLIGHT PIPELINE STARTED SUCCESSFULLY")
+    log(Colors.BOLD, "[OK] FLIGHT PIPELINE STARTED SUCCESSFULLY")
     log(Colors.BOLD, "=" * 70)
 
     log(Colors.GREEN, "\nComponents running:")
-    if processes.get("producer"):
-        log(Colors.GREEN, f"  ✅ Flight Producer (PID: {processes['producer'].pid})")
+    if processes.get("streamlit"):
+        log(Colors.GREEN, f"  [OK] Streamlit Dashboard (PID: {processes['streamlit'].pid})")
     else:
-        log(Colors.RED, "  ❌ Flight Producer - FAILED")
+        log(Colors.RED, "  [ERROR] Streamlit Dashboard - FAILED")
 
     if processes.get("daemon"):
-        log(Colors.GREEN, f"  ✅ Dagster Daemon (PID: {processes['daemon'].pid})")
+        log(Colors.GREEN, f"  [OK] Dagster Daemon (PID: {processes['daemon'].pid})")
     else:
-        log(Colors.RED, "  ❌ Dagster Daemon - FAILED")
+        log(Colors.RED, "  [ERROR] Dagster Daemon - FAILED")
 
     if processes.get("webserver"):
-        log(Colors.GREEN, f"  ✅ Dagster Web UI (PID: {processes['webserver'].pid})")
+        log(Colors.GREEN, f"  [OK] Dagster Web UI (PID: {processes['webserver'].pid})")
     else:
-        log(Colors.RED, "  ❌ Dagster Web UI - FAILED")
+        log(Colors.RED, "  [ERROR] Dagster Web UI - FAILED")
 
     if monitoring_enabled:
-        log(Colors.GREEN, "  ✅ Monitoring Stack (Prometheus + Grafana)")
+        log(Colors.GREEN, "  [OK] Monitoring Stack (Prometheus + Grafana)")
     else:
-        log(Colors.YELLOW, "  ⚠️  Monitoring NOT enabled (use --monitoring flag)")
+        log(Colors.YELLOW, "  [WARN] Monitoring NOT enabled (use --monitoring flag)")
 
-    log(Colors.BLUE, "\n📊 Access Points:")
+    log(Colors.BLUE, "\nAccess Points:")
     log(Colors.BLUE, "  • Dagster UI: http://localhost:3000")
     if monitoring_enabled:
         log(Colors.BLUE, "  • Prometheus: http://localhost:9090")
         log(Colors.BLUE, "  • Grafana: http://localhost:3001 (admin/admin)")
-    log(Colors.BLUE, "  • Kafka: localhost:9092")
-    log(Colors.BLUE, "  • Zookeeper: localhost:2181")
+    log(Colors.BLUE, "  • Streamlit: http://localhost:8501")
 
-    log(Colors.YELLOW, "\n📋 Next Steps:")
+    log(Colors.YELLOW, "\nNext Steps:")
     log(Colors.YELLOW, "  1. Open http://localhost:3000 (Dagster UI)")
     log(Colors.YELLOW, "  2. Click 'Jobs' → 'etl_pipeline' → 'Launch Run'")
     log(Colors.YELLOW, "  3. Check metrics at http://localhost:9090 (if monitoring enabled)")
     log(Colors.YELLOW, "  4. View dashboard at http://localhost:3001 (Grafana)")
 
-    log(Colors.YELLOW, "\n⌨️  Press Ctrl+C to stop everything\n")
+    log(Colors.YELLOW, "\nPress Ctrl+C to stop everything\n")
     log(Colors.BOLD, "=" * 70 + "\n")
 
 
@@ -333,9 +340,9 @@ def main():
     monitoring_enabled = args.monitoring
 
     log(Colors.BOLD, "\n" + "=" * 70)
-    log(Colors.BOLD, "🚀 FLIGHT PIPELINE - START ALL")
+    log(Colors.BOLD, "FLIGHT PIPELINE - START ALL")
     if monitoring_enabled:
-        log(Colors.BOLD, "📈 Monitoring Stack: ENABLED")
+        log(Colors.BOLD, "Monitoring Stack: ENABLED")
     log(Colors.BOLD, "=" * 70)
 
     # Register signal handler
@@ -346,27 +353,39 @@ def main():
     if not check_prerequisites():
         sys.exit(1)
 
+    # Set DAGSTER_HOME to the current directory
+    # This is required for Dagster to find dagster.yaml and store metadata
+    dagster_home = Path.cwd().absolute()
+    os.environ["DAGSTER_HOME"] = str(dagster_home)
+    log(Colors.BLUE, f"Setting DAGSTER_HOME to: {dagster_home}")
+
+    # Ensure .dagster/storage directory exists as specified in dagster.yaml
+    storage_dir = dagster_home / ".dagster" / "storage"
+    if not storage_dir.exists():
+        log(Colors.BLUE, f"Creating storage directory: {storage_dir}")
+        storage_dir.mkdir(parents=True, exist_ok=True)
+
     # 2. Start Docker services (Kafka)
     if not start_docker_services():
         sys.exit(1)
 
-    # 3. Start flight producer
-    producer_proc = start_flight_producer()
-    if not producer_proc:
+    # 3. Start Streamlit Dashboard
+    streamlit_proc = start_streamlit_dashboard()
+    if not streamlit_proc:
         sys.exit(1)
-    processes["producer"] = producer_proc
+    processes["streamlit"] = streamlit_proc
 
     # 4. Start Dagster daemon
     daemon_proc = start_dagster_daemon()
     if not daemon_proc:
-        producer_proc.terminate()
+        streamlit_proc.terminate()
         sys.exit(1)
     processes["daemon"] = daemon_proc
 
     # 5. Start Dagster webserver
     web_proc = start_dagster_webserver()
     if not web_proc:
-        producer_proc.terminate()
+        streamlit_proc.terminate()
         daemon_proc.terminate()
         sys.exit(1)
     processes["webserver"] = web_proc
@@ -400,15 +419,15 @@ def main():
                     except:
                         pass
 
-                    if name == "producer":
+                    if name == "streamlit":
                         log(Colors.YELLOW, f"   🔄 Restarting {name}...")
-                        processes[name] = start_flight_producer()
+                        processes[name] = start_streamlit_dashboard()
                     else:
                         log(Colors.RED, f"   ❌ {name} crashed. Please restart manually.")
                         processes[name] = None
 
             # Exit if all critical processes died
-            if not processes.get("producer") and not processes.get("daemon"):
+            if not processes.get("streamlit") and not processes.get("daemon"):
                 log(Colors.RED, "❌ All critical processes stopped. Exiting.")
                 sys.exit(1)
 

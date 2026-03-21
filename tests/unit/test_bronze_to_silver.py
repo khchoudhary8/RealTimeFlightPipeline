@@ -319,7 +319,7 @@ class TestIntegrationScenario:
 
     def test_full_pipeline_with_mixed_data(self, mock_s3):
         """Test realistic scenario with mixed valid/invalid data"""
-        transformer = BronzeToSilverTransformer(s3_client=mock_s3, bucket_name="realtimeflightstreamingbucket")
+        transformer = BronzeToSilverTransformer(s3_client=mock_s3, bucket_name="realtimeflightstreamingbuckett")
 
         # Mock S3 to return 3 files with mixed data
         mock_s3.list_objects_v2.return_value = {

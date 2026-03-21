@@ -28,7 +28,7 @@ s3 = boto3.client(
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
-BUCKET_NAME = "realtimeflightstreamingbucket"
+BUCKET_NAME = "realtimeflightstreamingbuckett"
 SILVER_PREFIX = "silver_flights/"
 
 # Snowflake Configuration

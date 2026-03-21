@@ -16,9 +16,9 @@ PROCESSED_FLIGHTS_PER_BATCH = Gauge("flights_per_batch", "Number of flights proc
 # Start Prometheus metrics server on port 8000
 try:
     start_http_server(8000)
-    print("📊 Prometheus metrics server started on http://localhost:8000/metrics")
+    print(" Prometheus metrics server started on http://localhost:8000/metrics")
 except OSError as e:
-    print(f"⚠️  Could not start metrics server on port 8000: {e}")
+    print(f"  Could not start metrics server on port 8000: {e}")
 
 TOPIC = "realtime-flights"
 
@@ -31,21 +31,21 @@ def fetch_flight_data():
     start_time = time.time()
 
     try:
-        print("🔄 Fetching data from OpenSky API...")
+        print(" Fetching data from OpenSky API...")
         response = requests.get(url, timeout=15)
 
         fetch_duration = time.time() - start_time
         FETCH_DURATION.observe(fetch_duration)
 
-        print(f"📡 Response status: {response.status_code}")
+        print(f" Response status: {response.status_code}")
 
         if response.status_code != 200:
-            print(f"❌ API Error: Status {response.status_code}")
+            print(f" API Error: Status {response.status_code}")
             API_ERRORS.labels(error_type="http_error").inc()
             return []
 
         if not response.text.strip():
-            print("❌ Empty response from API")
+            print(" Empty response from API")
             API_ERRORS.labels(error_type="empty_response").inc()
             return []
 
@@ -53,10 +53,10 @@ def fetch_flight_data():
         states = data.get("states", [])
 
         if not states:
-            print("⚠️  No flight data available")
+            print(" No flight data available")
             return []
 
-        print(f"📊 Total flights worldwide: {len(states)}")
+        print(f"Total flights worldwide: {len(states)}")
         FLIGHTS_FETCHED.inc(len(states))
 
         filtered = []
@@ -84,21 +84,21 @@ def fetch_flight_data():
         return filtered
 
     except requests.exceptions.Timeout:
-        print("⏰ Request timeout - API might be slow")
+        print(" Request timeout - API might be slow")
         API_ERRORS.labels(error_type="timeout").inc()
         return []
     except requests.exceptions.RequestException as e:
-        print(f"🌐 Network error: {e}")
+        print(f" Network error: {e}")
         API_ERRORS.labels(error_type="network").inc()
         return []
     except json.JSONDecodeError as e:
-        print(f"📝 JSON parsing error: {e}")
+        print(f" JSON parsing error: {e}")
         if response:
             print(f"Response content: {response.text[:200]}...")
         API_ERRORS.labels(error_type="json_decode").inc()
         return []
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f" Unexpected error: {e}")
         API_ERRORS.labels(error_type="unknown").inc()
         return []
     finally:
@@ -120,24 +120,24 @@ def stream_flights():
             flights = fetch_flight_data()
 
             if flights:
-                print(f"✅ Fetched {len(flights)} flights")
+                print(f"Fetched {len(flights)} flights")
                 for flight in flights:
                     try:
                         producer.send(TOPIC, value=flight)
                         FLIGHTS_SENT.inc()
                     except Exception as e:
-                        print(f"❌ Failed to send flight {flight.get('icao24')}: {e}")
+                        print(f" Failed to send flight {flight.get('icao24')}: {e}")
                         KAFKA_SEND_ERRORS.inc()
-                print(f"🎯 Successfully sent {len(flights)} flights to Kafka")
+                print(f" Successfully sent {len(flights)} flights to Kafka")
             else:
-                print("⚠️  No flights to send this round")
+                print("  No flights to send this round")
 
-            print("⏳ Waiting 20 seconds before next fetch...")
+            print(" Waiting 20 seconds before next fetch...")
             time.sleep(20)
             print("=" * 50)
 
         except Exception as e:
-            print(f"❌ Stream error: {e}")
+            print(f" Stream error: {e}")
             KAFKA_SEND_ERRORS.inc()
             print("⏳ Waiting 20 seconds before retry...")
             time.sleep(20)
