@@ -1,4 +1,4 @@
-from dagster import Definitions, load_assets_from_modules, define_asset_job, ScheduleDefinition
+from dagster import Definitions, load_assets_from_modules, define_asset_job, ScheduleDefinition, AssetSelection
 from orchestration import assets
 from orchestration.assets import dbt as dbt_assets_module
 
@@ -12,7 +12,7 @@ all_assets = [*core_assets, *dbt_analytics_assets]
 # Define a job that materializes all assets
 flight_pipeline_job = define_asset_job(
     name="flight_pipeline_job",
-    selection=all_assets
+    selection=AssetSelection.all()
 )
 
 # Define a schedule to run the job every 15 minutes

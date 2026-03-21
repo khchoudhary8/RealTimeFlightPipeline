@@ -34,7 +34,7 @@ s3= boto3.client('s3',
 BUCKET_NAME='realtimeflightstreamingbuckett'
 
 @app.agent(topic)
-async def process_flight_data(flights: faust.Stream):
+async def process_flight_data(flights: faust.StreamT):
     buffer: List[Flight] = []
     batch_interval = 10  # seconds
 
