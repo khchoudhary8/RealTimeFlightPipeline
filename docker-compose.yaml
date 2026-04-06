@@ -20,10 +20,25 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --topic realtime-flights"
 
   redis:
     image: redis:alpine
@@ -35,11 +50,15 @@ services:
     build: .
     container_name: ingestion-service
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - OPENSKY_API_URL=https://opensky-network.org/api/states/all
-    command: [ "python", "ingestion/producer.py" ]
+    command: [ "python", "-u", "ingestion/producer.py" ]
+    restart: on-failure
     ports:
       - "8000:8000"
     volumes:
@@ -49,14 +68,32 @@ services:
     build: .
     container_name: streaming-worker
     depends_on:
-      - kafka
-      - redis
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      init-kafka:
+        condition: service_completed_successfully
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-    command: [ "python", "-m", "streaming.worker", "worker", "-l", "info" ]
+    command: [ "python", "-u", "-m", "streaming.worker", "worker", "-l", "warn" ]
+    restart: on-failure
     volumes:
       - .:/app
+
+  dashboard:
+    build: .
+    container_name: flight-dashboard
+    depends_on:
+      redis:
+        condition: service_started
+    command: [ "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0" ]
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    restart: unless-stopped
