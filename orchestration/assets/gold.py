@@ -22,7 +22,7 @@ def get_snowflake_connection():
     private_key_path = settings.SNOWFLAKE_PRIVATE_KEY_PATH
     
     if private_key_path and os.path.exists(private_key_path):
-        print("🔐 Using key-pair authentication for Snowflake")
+        print("[AUTH] Using key-pair authentication for Snowflake")
         with open(private_key_path, "rb") as key_file:
             p_key = serialization.load_pem_private_key(
                 key_file.read(),
@@ -37,7 +37,7 @@ def get_snowflake_connection():
         )
         config['private_key'] = pkb
     else:
-        print("🔑 Using password authentication for Snowflake")
+        print("[AUTH] Using password authentication for Snowflake")
         config['password'] = settings.SNOWFLAKE_PASSWORD
 
     # OCSP Fix
@@ -55,7 +55,7 @@ def raw_flights_table(silver_flights):
 
     # 1. Read Silver Delta Table from S3
     delta_table_path = silver_flights
-    print(f"📥 Reading Silver data from Delta Table: {delta_table_path}")
+    print(f"[FETCH] Reading Silver data from Delta Table: {delta_table_path}")
     
     storage_options = {
         "AWS_ACCESS_KEY_ID": settings.AWS_ACCESS_KEY_ID,
@@ -67,7 +67,7 @@ def raw_flights_table(silver_flights):
         dt = DeltaTable(delta_table_path, storage_options=storage_options)
         df_pd = dt.to_pandas()
     except Exception as e:
-        print(f"❌ Error reading Delta Table: {e}")
+        print(f"[ERROR] Error reading Delta Table: {e}")
         raise
 
     if df_pd.empty:
@@ -80,9 +80,15 @@ def raw_flights_table(silver_flights):
     try:
         cursor = conn.cursor()
         
-        # 2. Drop + Recreate for clean schema (prevents type mismatches & duplicates)
-        cursor.execute(f"DROP TABLE IF EXISTS {settings.SNOWFLAKE_DATABASE}.{settings.SNOWFLAKE_SCHEMA}.FLIGHTS_RAW")
-        print("🧹 Dropped FLIGHTS_RAW for clean schema reload")
+        # 1. Ensure Database and Schema exist
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {settings.SNOWFLAKE_DATABASE}")
+        cursor.execute(f"USE DATABASE {settings.SNOWFLAKE_DATABASE}")
+        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {settings.SNOWFLAKE_SCHEMA}")
+        cursor.execute(f"USE SCHEMA {settings.SNOWFLAKE_SCHEMA}")
+        
+        # 2. Drop + Recreate table for clean schema
+        cursor.execute("DROP TABLE IF EXISTS FLIGHTS_RAW")
+        print("[CLEAN] Cleaned schema for reload")
 
         # 3. Create Table with fresh schema
         create_table_sql = f"""
@@ -102,7 +108,7 @@ def raw_flights_table(silver_flights):
         cursor.execute(create_table_sql)
 
         # 4. Load Data
-        print(f"🚀 Loading {len(df_pd)} rows to Snowflake...")
+        print(f"[LOAD] Loading {len(df_pd)} rows to Snowflake...")
         df_pd.columns = [c.upper() for c in df_pd.columns]
         
         cols_to_keep = ['ICAO24', 'CALLSIGN', 'ORIGIN_COUNTRY', 'TIME_POSITION', 
@@ -145,7 +151,7 @@ def raw_flights_table(silver_flights):
             schema=settings.SNOWFLAKE_SCHEMA,
             quote_identifiers=False
         )
-        print(f"✅ Loaded {nrows} rows.")
+        print(f"[SUCCESS] Loaded {nrows} rows.")
 
         # 4. Create Analytics Views (Gold Logic)
         views_sql = [
@@ -179,7 +185,7 @@ def raw_flights_table(silver_flights):
         for sql in views_sql:
             cursor.execute(sql)
         
-        print("🏆 Gold Views Created/Updated.")
+        print("[GOLD] Gold Views Created/Updated.")
 
     finally:
         conn.close()

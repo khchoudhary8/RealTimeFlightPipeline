@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Flight Pipeline Dashboards'
+    orgId: 1
+    folder: 'Flight Monitoring'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

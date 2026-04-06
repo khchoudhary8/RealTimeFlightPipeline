@@ -27,7 +27,7 @@ s3_client = boto3.client(
 # In a real heavy production, we'd use Faust Tables or external state, 
 # but for "Raw Dump", a local buffer before flush is common.
 BUFFER = []
-BUFFER_SIZE = 10
+BUFFER_SIZE = 1000
 LAST_FLUSH_TIME = datetime.now()
 
 async def upload_to_s3(data_batch):
@@ -78,11 +78,11 @@ async def process_flights(flights):
     # Note: Faunts agents run forever. 
     # Logic to flush on time interval would usually go in a @app.timer
     
-@app.timer(interval=5.0)
+@app.timer(interval=300.0)
 async def periodic_flush():
-    """Flush buffer every 5 seconds if there data"""
+    """Flush buffer every 5 minutes if there data"""
     global LAST_FLUSH_TIME
-    if BUFFER and (datetime.now() - LAST_FLUSH_TIME).total_seconds() > 5:
+    if BUFFER and (datetime.now() - LAST_FLUSH_TIME).total_seconds() > 300:
         print(f"⏰ Timeout flush: {len(BUFFER)} items")
         await upload_to_s3(list(BUFFER))
         BUFFER.clear()

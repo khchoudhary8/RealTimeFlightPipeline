@@ -95,3 +95,60 @@ services:
     volumes:
       - .:/app
     restart: unless-stopped
+
+  dagster-webserver:
+    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    container_name: dagster-webserver
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    command: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "orchestration/definitions.py" ]
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - .dagster:/opt/dagster/dagster_home
+    restart: unless-stopped
+
+  dagster-daemon:
+    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    container_name: dagster-daemon
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    command: [ "dagster-daemon", "run", "-w", "orchestration/definitions.py" ]
+    volumes:
+      - .:/app
+      - .dagster:/opt/dagster/dagster_home
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: flight-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: flight-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./config/grafana_datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./config/grafana_dashboards_provider.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./config/grafana_dashboard.json:/etc/grafana/dashboards/flight-pipeline.json
+    restart: unless-stopped

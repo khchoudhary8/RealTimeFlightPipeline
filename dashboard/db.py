@@ -69,17 +69,32 @@ def get_all_flights():
         ORDER BY TIME_POSITION
     """)
 
+def get_live_unique_flight_count():
+    """Get the count of unique aircraft seen in the last 15 minutes."""
+    df = query_snowflake("""
+        SELECT COUNT(DISTINCT ICAO24) as unique_count
+        FROM FLIGHTS_RAW
+        WHERE TIME_POSITION > DATEADD(minute, -15, CURRENT_TIMESTAMP())
+    """)
+    return int(df.iloc[0]['UNIQUE_COUNT']) if not df.empty else 0
 
-def get_recent_flights(hours=24):
-    """Get flights from the last N hours."""
+
+def get_recent_flights(minutes=15):
+    """Get the latest position for each aircraft seen in the last N minutes."""
     return query_snowflake(f"""
+        WITH latest_positions AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY ICAO24 ORDER BY TIME_POSITION DESC) as rn
+            FROM FLIGHTS_RAW
+            WHERE TIME_POSITION > DATEADD(minute, -{minutes}, CURRENT_TIMESTAMP())
+        )
         SELECT ICAO24, CALLSIGN, ORIGIN_COUNTRY, TIME_POSITION,
                LONGITUDE, LATITUDE, BARO_ALTITUDE, VELOCITY,
                PARTITION_DATE
-        FROM FLIGHTS_RAW
-        WHERE TIME_POSITION > DATEADD(hour, -{hours}, CURRENT_TIMESTAMP())
+        FROM latest_positions
+        WHERE rn = 1
         AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL
-        ORDER BY TIME_POSITION
+        ORDER BY TIME_POSITION DESC
     """)
 
 

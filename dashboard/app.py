@@ -4,7 +4,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import settings
-from db import get_snowflake_connection
+from db import get_snowflake_connection, get_live_unique_flight_count, get_recent_flights
 
 st.set_page_config(
     page_title="Flight Analytics Platform",
@@ -27,19 +27,11 @@ try:
         try:
             cursor = conn.cursor()
 
-            # 1. Get KPI Totals (accurate count)
-            cursor.execute("SELECT COUNT(*) FROM FLIGHTS_RAW WHERE LATITUDE IS NOT NULL")
-            total_flights = cursor.fetchone()[0]
+            # 1. Get Live Unique Aircraft (Last 15m)
+            live_flights_count = get_live_unique_flight_count()
 
-            # 2. Get Map Data (limit for performance)
-            cursor.execute("""
-                SELECT LATITUDE, LONGITUDE, ORIGIN_COUNTRY, CALLSIGN, BARO_ALTITUDE, VELOCITY
-                FROM FLIGHTS_RAW
-                WHERE LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL
-                ORDER BY TIME_POSITION DESC
-                LIMIT 10000
-            """)
-            df_map = cursor.fetch_pandas_all()
+            # 2. Get Map Data (Latest position for each aircraft in last 15m)
+            df_map = get_recent_flights(minutes=15)
 
             cursor.execute("SELECT * FROM TOP_AIRLINES")
             df_airlines = cursor.fetch_pandas_all()
@@ -63,7 +55,7 @@ try:
     avg_altitude = df_map['BARO_ALTITUDE'].mean() if not df_map.empty else 0
 
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-    kpi1.metric("Total Flights", f"{total_flights:,}")
+    kpi1.metric("Live Aircraft", f"{live_flights_count:,}")
     kpi2.metric("Active Airlines", active_airlines)
     kpi3.metric("Avg Velocity", f"{avg_velocity:.0f} m/s")
     kpi4.metric("Avg Altitude", f"{avg_altitude:.0f} m")
