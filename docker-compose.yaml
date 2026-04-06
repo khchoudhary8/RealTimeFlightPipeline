@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -47,7 +45,7 @@ services:
       - "6379:6379"
 
   ingestion:
-    build: .
+    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
     container_name: ingestion-service
     depends_on:
       kafka:
@@ -65,7 +63,7 @@ services:
       - .:/app
 
   streaming:
-    build: .
+    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
     container_name: streaming-worker
     depends_on:
       kafka:
@@ -86,7 +84,7 @@ services:
       - .:/app
 
   dashboard:
-    build: .
+    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
     container_name: flight-dashboard
     depends_on:
       redis:
