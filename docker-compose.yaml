@@ -99,8 +99,10 @@ services:
   dagster-webserver:
     image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
     container_name: dagster-webserver
+    user: root
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
+      - HOME=/tmp
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
@@ -116,8 +118,10 @@ services:
   dagster-daemon:
     image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
     container_name: dagster-daemon
+    user: root
     environment:
       - DAGSTER_HOME=/opt/dagster/dagster_home
+      - HOME=/tmp
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
