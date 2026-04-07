@@ -105,7 +105,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-    command: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "orchestration/definitions.py" ]
+    command: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-f", "orchestration/definitions.py" ]
     ports:
       - "3000:3000"
     volumes:
@@ -122,7 +122,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-    command: [ "dagster-daemon", "run", "-w", "orchestration/definitions.py" ]
+    command: [ "dagster-daemon", "run", "-f", "orchestration/definitions.py" ]
     volumes:
       - .:/app
       - .dagster:/opt/dagster/dagster_home
