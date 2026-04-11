@@ -57,6 +57,14 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Live Map Dashboard
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -94,7 +102,7 @@ resource "aws_key_pair" "generated_key" {
 # 4. EC2 Instance Launch
 resource "aws_instance" "pipeline_server" {
   ami           = data.aws_ami.amazon_linux_2023.id
-  instance_type = "t3.small" # Upgraded to t3.small for 2GB RAM. If this crashes, user can manual switch to c7i-flex.large.
+  instance_type = "c7i-flex.large" # Upgraded to c7i-flex.large for 4GB RAM to support full 10-container stack.
   
   subnet_id                   = aws_subnet.public_1.id
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
@@ -121,9 +129,19 @@ resource "aws_instance" "pipeline_server" {
   }
 }
 
+# 5. Elastic IP for permanent address
+resource "aws_eip" "pipeline_eip" {
+  instance = aws_instance.pipeline_server.id
+  domain   = "vpc"
+
+  tags = {
+    Name = "${var.project_name}-eip"
+  }
+}
+
 output "ec2_public_ip" {
-  description = "Public IP address of the EC2 Server"
-  value       = aws_instance.pipeline_server.public_ip
+  description = "Permanent Public IP address of the EC2 Server"
+  value       = aws_eip.pipeline_eip.public_ip
 }
 
 output "private_key" {
