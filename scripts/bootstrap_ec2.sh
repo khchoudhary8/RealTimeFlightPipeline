@@ -12,10 +12,13 @@ sudo dnf install -y docker git
 sudo systemctl enable docker --now
 sudo usermod -aG docker ec2-user
 
-# Install Docker Compose V2 if not present
+# Install Docker Compose V2 manually (Safest for AL2023)
 if ! docker compose version &> /dev/null; then
-    echo "📦 Installing Docker Compose..."
-    sudo dnf install -y docker-compose-plugin
+    echo "📦 Installing Docker Compose V2..."
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    # Ensure it's in the bin path
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 fi
 
 echo "📂 Phase 2: Repository Setup..."
