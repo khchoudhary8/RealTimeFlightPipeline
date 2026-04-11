@@ -45,7 +45,7 @@ services:
       - "6379:6379"
 
   ingestion:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: ingestion-service
     depends_on:
@@ -64,7 +64,7 @@ services:
       - .:/app
 
   streaming:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: streaming-worker
     depends_on:
@@ -86,7 +86,7 @@ services:
       - .:/app
 
   dashboard:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: flight-dashboard
     depends_on:
@@ -100,7 +100,7 @@ services:
     restart: unless-stopped
 
   live-map-dashboard:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:live-map-latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:live-map-latest
     build: 
       context: ./live_map_app
     container_name: live-map-dashboard
@@ -116,7 +116,7 @@ services:
       - ./live_map_app:/app
 
   dagster-webserver:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: dagster-webserver
     user: root
@@ -136,7 +136,7 @@ services:
     restart: unless-stopped
 
   dagster-daemon:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+    image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: dagster-daemon
     user: root

@@ -46,9 +46,7 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
     exit 1
 fi
 
-echo "🚀 Phase 5: Launching Stack..."
-docker-compose -f "$PROJECT_DIR/docker-compose.yaml" up -d --build
-
-echo "✅ Deployment Complete!"
-echo "📡 Dashboard: http://$(curl -s ifconfig.me):8080"
-echo "📊 Monitoring: http://$(curl -s ifconfig.me):3001"
+echo "🚀 Phase 5: Deployment Handover..."
+echo "Please trigger the GitHub Actions 'CI/CD Pipeline' to deploy the stack."
+echo "The pipeline will build the images, push them to Amazon ECR, and automatically trigger the pull and launch sequence on this EC2 instance."
+echo "✅ Bootstrap Complete!"
