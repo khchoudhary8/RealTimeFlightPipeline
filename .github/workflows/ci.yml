@@ -146,6 +146,10 @@ jobs:
           export ECR_REGISTRY="${{ needs.aws-ecr-push.outputs.registry }}"
           export ECR_REPOSITORY="flight-pipeline-app"
           
+          # Persist to .env for manual troubleshooting
+          sed -i "s|ECR_REGISTRY=.*|ECR_REGISTRY=${ECR_REGISTRY}|" .env || echo "ECR_REGISTRY=${ECR_REGISTRY}" >> .env
+          sed -i "s|ECR_REPOSITORY=.*|ECR_REPOSITORY=${ECR_REPOSITORY}|" .env || echo "ECR_REPOSITORY=${ECR_REPOSITORY}" >> .env
+          
           docker compose pull
           docker compose up -d
           
