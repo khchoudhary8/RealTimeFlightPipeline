@@ -76,6 +76,12 @@ resource "aws_ecs_task_definition" "dashboard" {
     environment = [
       { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.pipeline_server.private_ip}:9092" }
     ]
+    environmentFiles = [
+      {
+        value = "arn:aws:s3:::${var.s3_bucket_name}/.env"
+        type  = "s3"
+      }
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -128,6 +134,12 @@ resource "aws_ecs_task_definition" "live_map" {
     environment = [
       { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.pipeline_server.private_ip}:9092" }
     ]
+    environmentFiles = [
+      {
+        value = "arn:aws:s3:::${var.s3_bucket_name}/.env"
+        type  = "s3"
+      }
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -178,6 +190,12 @@ resource "aws_ecs_task_definition" "streaming" {
       { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.pipeline_server.private_ip}:9092" },
       { name = "S3_BUCKET_NAME", value = var.s3_bucket_name }
     ]
+    environmentFiles = [
+      {
+        value = "arn:aws:s3:::${var.s3_bucket_name}/.env"
+        type  = "s3"
+      }
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -221,6 +239,12 @@ resource "aws_ecs_task_definition" "ingestion" {
     environment = [
       { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.pipeline_server.private_ip}:9092" },
       { name = "OPENSKY_API_URL", value = "https://opensky-network.org/api/states/all" }
+    ]
+    environmentFiles = [
+      {
+        value = "arn:aws:s3:::${var.s3_bucket_name}/.env"
+        type  = "s3"
+      }
     ]
     logConfiguration = {
       logDriver = "awslogs"
