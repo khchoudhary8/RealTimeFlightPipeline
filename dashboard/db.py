@@ -108,3 +108,20 @@ def get_flight_path(icao24):
         AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL
         ORDER BY TIME_POSITION
     """)
+def get_flights_by_date(selected_date):
+    """Get the latest position for each aircraft seen on a specific date."""
+    return query_snowflake(f"""
+        WITH latest_positions AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY ICAO24 ORDER BY TIME_POSITION DESC) as rn
+            FROM FLIGHTS_RAW
+            WHERE PARTITION_DATE = '{selected_date}'
+        )
+        SELECT ICAO24, CALLSIGN, ORIGIN_COUNTRY, TIME_POSITION,
+               LONGITUDE, LATITUDE, BARO_ALTITUDE, VELOCITY,
+               PARTITION_DATE
+        FROM latest_positions
+        WHERE rn = 1
+        AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL
+        ORDER BY TIME_POSITION DESC
+    """)

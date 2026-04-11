@@ -4,7 +4,8 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import settings
-from db import get_snowflake_connection, get_live_unique_flight_count, get_recent_flights
+from db import get_snowflake_connection, get_live_unique_flight_count, get_recent_flights, get_flights_by_date
+import datetime
 
 st.set_page_config(
     page_title="Flight Analytics Platform",
@@ -17,6 +18,15 @@ st.sidebar.markdown("## ✈️ Flight Analytics")
 st.sidebar.caption(f"Snowflake: `{settings.SNOWFLAKE_DATABASE}`")
 st.sidebar.markdown("---")
 
+# --- Date Filter ---
+st.sidebar.subheader("📅 Filter by Date")
+today = datetime.date.today()
+selected_date = st.sidebar.date_input("Select Date", today)
+use_live = selected_date == today
+
+st.sidebar.info("💡 Pro Tip: Select today to see live streaming data. Select a past date to view historical flight captures.")
+st.sidebar.markdown("---")
+
 # --- Main Overview Page ---
 st.title("✈️ Real-Time Flight Analytics")
 st.caption(f"Data Source: OpenSky Network | Warehouse: Snowflake ({settings.SNOWFLAKE_DATABASE})")
@@ -27,11 +37,14 @@ try:
         try:
             cursor = conn.cursor()
 
-            # 1. Get Live Unique Aircraft (Last 15m)
-            live_flights_count = get_live_unique_flight_count()
+            # 1. Get Live Unique Aircraft (Last 15m) - Only for today
+            live_flights_count = get_live_unique_flight_count() if use_live else 0
 
-            # 2. Get Map Data (Latest position for each aircraft in last 15m)
-            df_map = get_recent_flights(minutes=15)
+            # 2. Get Map Data
+            if use_live:
+                df_map = get_recent_flights(minutes=15)
+            else:
+                df_map = get_flights_by_date(selected_date)
 
             cursor.execute("SELECT * FROM TOP_AIRLINES")
             df_airlines = cursor.fetch_pandas_all()
@@ -55,7 +68,12 @@ try:
     avg_altitude = df_map['BARO_ALTITUDE'].mean() if not df_map.empty else 0
 
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-    kpi1.metric("Live Aircraft", f"{live_flights_count:,}")
+    
+    if use_live:
+        kpi1.metric("Live Aircraft (15m)", f"{live_flights_count:,}", help="Unique aircraft seen in the last 15 minutes across all batches.")
+    else:
+        kpi1.metric("Unique Aircraft (Day)", f"{len(df_map):,}", help="Total unique aircraft captured throughout the entire selected day.")
+        
     kpi2.metric("Active Airlines", active_airlines)
     kpi3.metric("Avg Velocity", f"{avg_velocity:.0f} m/s")
     kpi4.metric("Avg Altitude", f"{avg_altitude:.0f} m")
