@@ -112,8 +112,7 @@ services:
       kafka:
         condition: service_healthy
     restart: unless-stopped
-    volumes:
-      - ./live_map_app:/app
+    restart: unless-stopped
 
   dagster-webserver:
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
@@ -131,7 +130,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
       - .dagster:/opt/dagster/dagster_home
     restart: unless-stopped
 
@@ -149,7 +147,6 @@ services:
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     command: [ "dagster-daemon", "run", "-f", "orchestration/definitions.py" ]
     volumes:
-      - .:/app
       - .dagster:/opt/dagster/dagster_home
     restart: unless-stopped
 
