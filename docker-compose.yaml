@@ -60,8 +60,6 @@ services:
     restart: on-failure
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
 
   streaming:
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
@@ -82,8 +80,6 @@ services:
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     command: [ "python", "-u", "-m", "streaming.worker", "worker", "-l", "warn" ]
     restart: on-failure
-    volumes:
-      - .:/app
 
   dashboard:
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
@@ -95,8 +91,6 @@ services:
     command: [ "python", "-m", "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0" ]
     ports:
       - "8501:8501"
-    volumes:
-      - .:/app
     restart: unless-stopped
 
   live-map-dashboard:
@@ -111,7 +105,6 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    restart: unless-stopped
     restart: unless-stopped
 
   dagster-webserver:
