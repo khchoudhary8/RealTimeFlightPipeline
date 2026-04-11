@@ -26,11 +26,12 @@ def is_in_jamshedpur(lat, lon):
     return (JAMSHEDPUR_BOUNDS["min_lat"] <= lat <= JAMSHEDPUR_BOUNDS["max_lat"]) and \
            (JAMSHEDPUR_BOUNDS["min_lon"] <= lon <= JAMSHEDPUR_BOUNDS["max_lon"])
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/live", response_class=HTMLResponse)
+@app.get("/live/", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.websocket("/ws")
+@app.websocket("/live/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     

@@ -267,7 +267,7 @@
             document.getElementById('national-badge').innerText = (totalCount - localCount);
         }
 
-        const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`);
+        const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/live/ws`);
 
         ws.onmessage = (event) => {
             const flight = JSON.parse(event.data);
