@@ -3,8 +3,16 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'terraform/**'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'terraform/**'
 
 jobs:
   test:

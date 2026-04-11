@@ -47,7 +47,7 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
 fi
 
 echo "🚀 Phase 5: Launching Stack..."
-docker compose -f "$PROJECT_DIR/docker-compose.yaml" up -d --build
+docker-compose -f "$PROJECT_DIR/docker-compose.yaml" up -d --build
 
 echo "✅ Deployment Complete!"
 echo "📡 Dashboard: http://$(curl -s ifconfig.me):8080"
