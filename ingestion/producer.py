@@ -135,6 +135,8 @@ def fetch_flight_data():
                     "latitude": s[6],
                     "baro_altitude": s[7],
                     "velocity": s[9],
+                    "true_track": s[10],
+                    "squawk": s[14] if len(s) > 14 else None,
                 })
         
         print(f"🇮🇳 Flights over India: {len(filtered)}")

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jamshedpur Live Flight Radar</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; background: #000; color: #fff; overflow: hidden; }
+        #map { height: 45vh; width: 100vw; background: #000; }
+        #dashboard { height: 55vh; width: 100vw; overflow-y: auto; background: #0a0a0a; padding: 15px; box-sizing: border-box; border-top: 1px solid #333; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Layout */
+        .top-row { display: flex; gap: 15px; height: 120px; }
+        .bottom-row { display: flex; gap: 15px; flex: 1; min-height: 0; }
+        
+        .panel { flex: 1; background: #111; border-radius: 12px; border: 1px solid #222; overflow: hidden; display: flex; flex-direction: column; }
+        .panel-header { background: #1a1a1a; padding: 10px 15px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .panel-header h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #00ffcc; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 5px; }
+
+        /* Insights Cards */
+        .insight-card { flex: 1; background: #111; border-radius: 12px; border: 1px solid #222; padding: 15px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+        .insight-card::after { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #00ffcc; }
+        .insight-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .insight-value { font-size: 1.2rem; font-weight: 700; color: #fff; margin: 5px 0; }
+        .insight-sub { font-size: 0.75rem; color: #00ffcc; }
+
+        /* Specific card colors */
+        .card-speed::after { background: #00ffcc; }
+        .card-alt::after { background: #3388ff; }
+        .card-airline::after { background: #ffcc00; }
+        .card-emergency::after { background: #ff0055; }
+        .emergency-active { animation: emergency-pulse 1s infinite alternate; border-color: #ff0055; }
+        @keyframes emergency-pulse { from { box-shadow: 0 0 5px #ff0055; } to { box-shadow: 0 0 20px #ff0055; } }
+
+        /* Overlay */
+        .overlay {
+            position: absolute; top: 15px; left: 15px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.85); color: #00ffcc; padding: 12px 15px;
+            border-radius: 10px; border: 1px solid rgba(0, 255, 204, 0.3);
+            backdrop-filter: blur(10px); width: 220px;
+        }
+        .metric { font-size: 0.8rem; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .value { color: #fff; }
+        
+        .search-box { margin-top: 10px; position: relative; }
+        .search-box input { 
+            width: 100%; background: #000; border: 1px solid #333; border-radius: 5px; 
+            padding: 6px 10px; color: #fff; font-size: 0.8rem; outline: none; box-sizing: border-box;
+        }
+        .search-box input:focus { border-color: #00ffcc; }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; }
+        th { background: #1a1a1a; position: sticky; top: 0; padding: 10px; color: #666; font-weight: 500; border-bottom: 1px solid #222; }
+        td { padding: 8px 10px; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+        .highlight { color: #00ffcc; font-weight: 600; }
+        .trend-up { color: #00ff55; }
+        .trend-down { color: #ff0055; }
+        
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; background: #222; color: #888; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay">
+        <div class="metric">India Total: <span class="value" id="total-india">0</span></div>
+        <div class="metric">Radar Radius: <span class="value" id="radius-label">100 km</span></div>
+        <input type="range" id="radius-slider" min="10" max="1000" value="100" oninput="updateRadius()" style="width:100%; accent-color:#00ffcc;">
+        
+        <div class="search-box">
+            <input type="text" id="flight-search" placeholder="Search Callsign..." oninput="refreshUI()">
+        </div>
+    </div>
+
+    <div id="map"></div>
+    
+    <div id="dashboard">
+        <!-- Top Row: Insights -->
+        <div class="top-row">
+            <div class="insight-card card-speed">
+                <div class="insight-label">Fastest Airspeed</div>
+                <div class="insight-value" id="top-speed-val">-</div>
+                <div class="insight-sub" id="top-speed-id">No data</div>
+            </div>
+            <div class="insight-card card-alt">
+                <div class="insight-label">Max Altitude</div>
+                <div class="insight-value" id="max-alt-val">-</div>
+                <div class="insight-sub" id="max-alt-id">No data</div>
+            </div>
+            <div class="insight-card card-airline">
+                <div class="insight-label">Most Active Carrier</div>
+                <div class="insight-value" id="top-airline-val">-</div>
+                <div class="insight-sub" id="top-airline-count">0 Flights</div>
+            </div>
+            <div class="insight-card card-emergency" id="emergency-card">
+                <div class="insight-label">Emergency Alerts</div>
+                <div class="insight-value" id="emergency-val">NONE</div>
+                <div class="insight-sub" id="emergency-sub">SQ: 7700 Checks Active</div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Tables -->
+        <div class="bottom-row">
+            <div class="panel">
+                <div class="panel-header"><h3>Local Radar (Radius)</h3><span class="badge" id="local-badge">0</span></div>
+                <div class="panel-body">
+                    <table id="local-table">
+                        <thead><tr><th>Callsign</th><th>Squawk</th><th>Alt (ft)</th><th>Dist</th></tr></thead>
+                        <tbody id="local-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><h3>National Airspace (All India)</h3><span class="badge" id="national-badge">0</span></div>
+                <div class="panel-body">
+                    <table id="national-table">
+                        <thead><tr><th>Callsign</th><th>Trend</th><th>Alt (ft)</th><th>Spd</th></tr></thead>
+                        <tbody id="national-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const JAM_LAT = 22.8046;
+        const JAM_LON = 86.2029;
+        const map = L.map('map', { center: [JAM_LAT, JAM_LON], zoom: 6, zoomControl: false });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM contributors' }).addTo(map);
+        L.circleMarker([JAM_LAT, JAM_LON], { color: '#ff0055', radius: 4, fillOpacity: 1 }).addTo(map);
+
+        let radarCircle = L.circle([JAM_LAT, JAM_LON], { color: '#00ffcc', fillColor: '#00ffcc', fillOpacity: 0.02, weight: 1, radius: 100000 }).addTo(map);
+
+        const getAirplaneIcon = (heading, isEmergency = false) => {
+            const color = isEmergency ? '#ff0055' : '#00ffcc';
+            const shadow = isEmergency ? '0 0 15px #ff0055' : '0 0 5px #00ffcc';
+            return L.divIcon({
+                className: 'plane-div',
+                html: `<div style="transform: rotate(${heading || 0}deg); font-size: 20px; color: ${color}; text-shadow: ${shadow};">✈</div>`,
+                iconSize: [20, 20], iconAnchor: [10, 10]
+            });
+        };
+
+        const globalState = {}; 
+        let currentRadiusKm = 100;
+
+        function updateRadius() {
+            currentRadiusKm = parseInt(document.getElementById('radius-slider').value);
+            document.getElementById('radius-label').innerText = currentRadiusKm + " km";
+            radarCircle.setRadius(currentRadiusKm * 1000);
+            refreshUI();
+        }
+        
+        const ft = (m) => m ? Math.round(m * 3.28084).toLocaleString() : '-';
+        const kt = (ms) => ms ? Math.round(ms * 1.94384) : 0;
+
+        function refreshUI() {
+            const localBody = document.getElementById('local-body');
+            const nationalBody = document.getElementById('national-body');
+            const searchTerm = document.getElementById('flight-search').value.toUpperCase();
+            
+            let localRows = '';
+            let nationalRows = '';
+            let localCount = 0;
+            let totalCount = 0;
+            
+            // Analytics variables
+            let topSpeed = { val: 0, callsign: '-' };
+            let maxAlt = { val: 0, callsign: '-' };
+            let airlines = {};
+            let emergencyCallsign = null;
+
+            const sorted = Object.values(globalState).sort((a, b) => a.distanceKm - b.distanceKm);
+
+            for (const entry of sorted) {
+                const f = entry.flight;
+                if (searchTerm && !f.callsign?.includes(searchTerm)) {
+                    if (entry.marker && map.hasLayer(entry.marker)) map.removeLayer(entry.marker);
+                    if (entry.trail) map.removeLayer(entry.trail);
+                    continue;
+                }
+
+                totalCount++;
+                const inRadius = entry.distanceKm <= currentRadiusKm;
+                const isEmergency = f.squawk === '7700';
+                
+                // Update Analytics
+                const speed = kt(f.velocity);
+                if (speed > topSpeed.val) topSpeed = { val: speed, callsign: f.callsign };
+                if (f.baro_altitude > maxAlt.val) maxAlt = { val: f.baro_altitude, callsign: f.callsign };
+                if (f.callsign) {
+                    const code = f.callsign.substring(0, 3);
+                    airlines[code] = (airlines[code] || 0) + 1;
+                }
+                if (isEmergency) emergencyCallsign = f.callsign;
+
+                // Map updates
+                if (entry.history.length > 1) {
+                    if (!entry.trail) {
+                        entry.trail = L.polyline(entry.history, { color: '#00ffcc', weight: 1, opacity: 0.3, dashArray: '2, 5' }).addTo(map);
+                    } else {
+                        entry.trail.setLatLngs(entry.history);
+                    }
+                }
+
+                if (inRadius) {
+                    localCount++;
+                    if (!entry.marker) {
+                        entry.marker = L.marker([f.latitude, f.longitude], { icon: getAirplaneIcon(f.true_track, isEmergency) }).addTo(map);
+                    } else {
+                        if (!map.hasLayer(entry.marker)) map.addLayer(entry.marker);
+                        entry.marker.setLatLng([f.latitude, f.longitude]);
+                        entry.marker.setIcon(getAirplaneIcon(f.true_track, isEmergency));
+                    }
+                    entry.marker.bindPopup(`<strong>${f.callsign || 'N/A'}</strong>`);
+                    
+                    localRows += `
+                        <tr>
+                            <td class="${isEmergency ? 'trend-down' : 'highlight'}">${f.callsign || 'N/A'}</td>
+                            <td style="color:${isEmergency ? '#ff0055' : '#888'}">${f.squawk || '-'}</td>
+                            <td>${ft(f.baro_altitude)}</td>
+                            <td>${entry.distanceKm.toFixed(1)}</td>
+                        </tr>
+                    `;
+                } else {
+                    if (entry.marker && map.hasLayer(entry.marker)) map.removeLayer(entry.marker);
+                    
+                    const trendIcon = entry.trend === 'up' ? '<span class="trend-up">▲</span>' : (entry.trend === 'down' ? '<span class="trend-down">▼</span>' : '=');
+                    nationalRows += `
+                        <tr>
+                            <td>${f.callsign || 'N/A'}</td>
+                            <td>${trendIcon}</td>
+                            <td>${ft(f.baro_altitude)}</td>
+                            <td>${speed} kt</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            // Update Insight Cards
+            document.getElementById('top-speed-val').innerText = topSpeed.val + " kt";
+            document.getElementById('top-speed-id').innerText = topSpeed.callsign;
+            document.getElementById('max-alt-val').innerText = ft(maxAlt.val) + " ft";
+            document.getElementById('max-alt-id').innerText = maxAlt.callsign;
+            
+            const topAirline = Object.entries(airlines).sort((a,b) => b[1]-a[1])[0] || ['-', 0];
+            document.getElementById('top-airline-val').innerText = topAirline[0];
+            document.getElementById('top-airline-count').innerText = topAirline[1] + " Flights";
+            
+            const eCard = document.getElementById('emergency-card');
+            if (emergencyCallsign) {
+                eCard.classList.add('emergency-active');
+                document.getElementById('emergency-val').innerText = emergencyCallsign;
+                document.getElementById('emergency-val').style.color = "#ff0055";
+            } else {
+                eCard.classList.remove('emergency-active');
+                document.getElementById('emergency-val').innerText = "NONE";
+                document.getElementById('emergency-val').style.color = "#fff";
+            }
+
+            localBody.innerHTML = localRows;
+            nationalBody.innerHTML = nationalRows;
+            document.getElementById('total-india').innerText = totalCount;
+            document.getElementById('local-badge').innerText = localCount;
+            document.getElementById('national-badge').innerText = (totalCount - localCount);
+        }
+
+        const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`);
+
+        ws.onmessage = (event) => {
+            const flight = JSON.parse(event.data);
+            const id = flight.icao24;
+            const distKm = map.distance([JAM_LAT, JAM_LON], [flight.latitude, flight.longitude]) / 1000;
+            
+            if(!globalState[id]) globalState[id] = { marker: null, history: [], prevAlt: null, trend: '=' };
+            
+            const state = globalState[id];
+            
+            // Trend
+            if (state.prevAlt !== null) {
+                if (flight.baro_altitude > state.prevAlt + 10) state.trend = 'up';
+                else if (flight.baro_altitude < state.prevAlt - 10) state.trend = 'down';
+                else state.trend = '=';
+            }
+            state.prevAlt = flight.baro_altitude;
+
+            // History for trails
+            state.history.push([flight.latitude, flight.longitude]);
+            if (state.history.length > 10) state.history.shift();
+
+            state.flight = flight;
+            state.distanceKm = distKm;
+            state.lastUpdate = Date.now();
+            
+            refreshUI();
+        };
+
+        setInterval(() => {
+            const now = Date.now();
+            let changed = false;
+            for (const id in globalState) {
+                if (now - globalState[id].lastUpdate > 45000) {
+                    if (globalState[id].marker) map.removeLayer(globalState[id].marker);
+                    if (globalState[id].trail) map.removeLayer(globalState[id].trail);
+                    delete globalState[id];
+                    changed = true;
+                }
+            }
+            if (changed) refreshUI();
+        }, 15000);
+    </script>
+</body>
+</html>

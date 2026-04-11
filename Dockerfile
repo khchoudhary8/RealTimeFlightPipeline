@@ -1,6 +1,7 @@
 FROM python:3.10-slim
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies (build tools for some python packages)
 RUN apt-get update && apt-get install -y \
@@ -9,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .

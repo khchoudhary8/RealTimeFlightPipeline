@@ -1,0 +1,22 @@
+
+  
+    
+
+        create or replace transient table FLIGHTS_RAW.RAW_gold.gold_daily_counts
+         as
+        (with flights as (
+    select * from FLIGHTS_RAW.RAW_silver.stg_flights
+)
+
+select
+    partition_date,
+    origin_country,
+    count(*) as flight_count,
+    avg(baro_altitude) as avg_altitude,
+    avg(velocity) as avg_velocity
+from flights
+where time_position is not null
+group by partition_date, origin_country
+        );
+      
+  

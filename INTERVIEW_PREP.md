@@ -79,17 +79,32 @@ This is "Schema Drift".
 1.  **Bronze (S3)** is aggressive. It saves *whatever* JSON it gets. It never fails on schema change.
 2.  **Silver (Dagster)** would likely fail if a key column is missing. I would use **Dagster Sensors** or **Great Expectations** checks to validate the schema before processing. If it fails, I get a PagerDuty alert, update the code, and **Replay** the failed events from Bronze.
 
-### Q3: "How do you scale to 100x traffic?"
+### Q3: "How do you scale to 100x traffic?" (Scaling & Accessibility)
 **Answer**:
-1.  **Kafka**: Increase **Partitions** (e.g., from 1 to 50).
-2.  **Processing**: Increase **Faust Workers**. Because they share the same consumer group, they automatically rebalance the 50 partitions among themselves.
-3.  **S3**: Handles infinite scale automatically.
-4.  **Snowflake**: Resize the Warehouse from X-Small to Medium (vertical scaling) or Multi-Cluster (horizontal scaling).
+1.  **Kafka Middleware**: Increase **Partitions** (e.g., from 1 to 50). This allows parallel processing.
+2.  **Processing**: Deploy Faust via **Kubernetes Deployment**. Because workers share the same consumer group, they automatically rebalance the 50 partitions among themselves. I'd configure a Horizontal Pod Autoscaler (HPA) to add workers based on CPU load.
+3.  **Database**: Snowflake handles infinite storage scaling automatically. For query accessibility (concurrent analysts), I would configure **Multi-Cluster Warehouses** to automatically spin up additional compute nodes when query queuing occurs.
 
-### Q4: "Why split Silver and Gold?"
+### Q4: "How is your architecture Fault Tolerant and Highly Available?"
 **Answer**: 
-*   **Silver** is for Data Scientists. They want clean, granular, flight-by-flight data to train ML models (e.g., predicting delays).
-*   **Gold** is for Business Analysts / Dashboard. They just want "Total Flights per Country". They don't need billion rows; they need the pre-aggregated summary for speed.
+*   **Decoupling is key**: If the Snowflake data warehouse goes down, the OpenSky ingester (Producer) doesn't care. It keeps fetching and pushing to Kafka. If Faust goes down, Kafka retains the messages (Fault Tolerance). Once services return, they pick up exactly where they left off (using Consumer Group offsets). 
+*   **High Availability**: In an enterprise deployment, Kafka would be deployed via AWS MSK across 3 Availability Zones (AZs) with a replication factor of 3. Kubernetes worker nodes would also spread across AZs.
+
+### Q5: "How do you handle overnight or weekend failures where no one is watching?"
+**Answer**:
+*   **Orchestration Auto-retries**: In Dagster, I configure `RetryPolicy(max_retries=3, delay=300)`. Transient network issues or Snowflake API timeouts resolve themselves automatically.
+*   **Alerting**: I configure **Prometheus** to monitor Kafka Consumer Lag. If lag exceeds 10 minutes (meaning the Faust worker died silently), an alert fires to Slack/PagerDuty.
+*   **Dead Letter Queues (DLQ)**: If a specific malformed flight record continuously crashes the pipeline, Kafka/Faust routes it to a DLQ so the pipeline skips it and continues processing the rest until morning.
+
+### Q6: "How do you solve Out of Memory (OOM) issues if data size explodes suddenly?"
+**Answer**:
+*   **Streaming limits**: Faust processes events lazily (one-by-one or in small chunks of 1,000 via a windowing `buffer`). It only keeps the current batch in memory before flushing to S3.
+*   **Batching limits**: In Dagster, using `polars` helps because it's highly memory efficient. If data exceeds RAM, I would configure polars to use streaming execution `.collect(streaming=True)`. Alternatively, for massive scale, I would switch the Silver transformation to **Apache Spark**, which spills to disk securely to avoid OOM crashes.
+
+### Q7: "What happens if a job is taking too long?"
+**Answer**:
+*   **Dagster Timeouts**: I enforce an execution timeout at the Dagster Job level. If the `etl_pipeline` takes more than 45 minutes when it normally takes 5, it gets killed, and an alert is sent.
+*   **Performance Profiling**: I would look at the Dagster UI's Gantt charts to identify the exact step. Usually, it's either an unoptimized SQL join in the Gold layer (fixed via a clustering key in Snowflake) or a slow file read (fixed by partitioning the Silver Parquet files better).
 
 ---
 

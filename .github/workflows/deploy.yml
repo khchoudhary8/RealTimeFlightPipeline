@@ -1,0 +1,35 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    # Wait for CI (tests & builds) to pass before deploying
+    needs: [docker-build-and-push, aws-ecr-push]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          PROJECT_DIR="/home/ec2-user/flight_pipeline"
+          cd $PROJECT_DIR
+          
+          echo "🔄 Pulling latest code from main..."
+          git pull origin main
+          
+          echo "🚀 Rebuilding and Restarting Containers..."
+          # Using --build to ensure any local template/code changes are applied
+          docker compose up -d --build
+          
+          echo "✅ Deployment Successful!"

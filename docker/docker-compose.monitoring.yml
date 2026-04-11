@@ -7,7 +7,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../config/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -18,9 +18,10 @@ services:
       - '--web.enable-lifecycle'
     networks:
       - monitoring
+      - default
     restart: unless-stopped
-    depends_on:
-      - flight-producer  # Wait for producer to start
+    # depends_on:
+    #   - ingestion
 
   grafana:
     image: grafana/grafana:latest
@@ -33,9 +34,12 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana_dashboard.json:/etc/grafana/provisioning/dashboards/flight-pipeline.json
+      - ../config/grafana_datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ../config/grafana_dashboards_provider.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ../config/grafana_dashboard.json:/etc/grafana/dashboards/flight-pipeline.json
     networks:
       - monitoring
+      - default
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -49,3 +53,6 @@ volumes:
 networks:
   monitoring:
     driver: bridge
+  default:
+    name: flight_pipeline_default
+    external: true

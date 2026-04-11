@@ -45,7 +45,7 @@ services:
       - "6379:6379"
 
   ingestion:
-    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    build: .
     container_name: ingestion-service
     depends_on:
       kafka:
@@ -63,7 +63,7 @@ services:
       - .:/app
 
   streaming:
-    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    build: .
     container_name: streaming-worker
     depends_on:
       kafka:
@@ -84,7 +84,7 @@ services:
       - .:/app
 
   dashboard:
-    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    build: .
     container_name: flight-dashboard
     depends_on:
       redis:
@@ -96,8 +96,23 @@ services:
       - .:/app
     restart: unless-stopped
 
+  live-map-dashboard:
+    build: 
+      context: ./live_map_app
+    container_name: live-map-dashboard
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./live_map_app:/app
+
   dagster-webserver:
-    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    build: .
     container_name: dagster-webserver
     user: root
     environment:
@@ -116,7 +131,7 @@ services:
     restart: unless-stopped
 
   dagster-daemon:
-    image: 972793825890.dkr.ecr.ap-south-1.amazonaws.com/flight-pipeline-app:latest
+    build: .
     container_name: dagster-daemon
     user: root
     environment:
