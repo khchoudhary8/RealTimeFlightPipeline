@@ -65,6 +65,23 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Kafka - Inbound from everywhere (for local prod testing) AND specifically from ECS Fargate
+  ingress {
+    from_port       = 9092
+    to_port         = 9092
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"]
+    security_groups = [aws_security_group.ecs_tasks_sg.id]
+  }
+
+  # Redis - Allow Fargate to cache
+  ingress {
+    from_port       = 6379   
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_tasks_sg.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

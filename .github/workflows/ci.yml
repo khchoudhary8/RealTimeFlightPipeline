@@ -151,6 +151,22 @@ jobs:
           sed -i "s|ECR_REPOSITORY=.*|ECR_REPOSITORY=${ECR_REPOSITORY}|" .env || echo "ECR_REPOSITORY=${ECR_REPOSITORY}" >> .env
           
           docker compose pull
-          docker compose up -d
+          docker compose up -d --remove-orphans
           
-          echo "✅ Deployment Successful!"
+          echo "✅ Stateful Deployment Successful!"
+
+    - name: Configure AWS credentials for ECS
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+
+    - name: Deploy Stateless Tier to ECS Fargate
+      run: |
+        echo "🚀 Triggering Rolling Update for Fargate Services..."
+        aws ecs update-service --cluster flight-pipeline-cluster --service flight-pipeline-dashboard-svc --force-new-deployment
+        aws ecs update-service --cluster flight-pipeline-cluster --service flight-pipeline-live-map-svc --force-new-deployment
+        aws ecs update-service --cluster flight-pipeline-cluster --service flight-pipeline-streaming-svc --force-new-deployment
+        aws ecs update-service --cluster flight-pipeline-cluster --service flight-pipeline-ingestion-svc --force-new-deployment
+        echo "✅ ECS Deployment Triggered!"
