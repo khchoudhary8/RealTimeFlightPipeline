@@ -45,6 +45,7 @@ services:
       - "6379:6379"
 
   ingestion:
+    profiles: ["stateless"]
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: ingestion-service
@@ -62,6 +63,7 @@ services:
       - "8000:8000"
 
   streaming:
+    profiles: ["stateless"]
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: streaming-worker
@@ -82,6 +84,7 @@ services:
     restart: on-failure
 
   dashboard:
+    profiles: ["stateless"]
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:latest
     build: .
     container_name: flight-dashboard
@@ -104,6 +107,7 @@ services:
     restart: unless-stopped
 
   live-map-dashboard:
+    profiles: ["stateless"]
     image: ${ECR_REGISTRY:-local}/${ECR_REPOSITORY:-flight-pipeline}:live-map-latest
     build: 
       context: ./live_map_app
