@@ -37,8 +37,8 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Install dbt dependencies during build phase
-RUN cd dbt_project && dbt deps
+# Install dbt dependencies and parse the project during build phase
+RUN cd dbt_project && dbt deps && dbt parse
 
 # Default command
 CMD ["python", "ingestion/producer.py"]
